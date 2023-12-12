@@ -1,9 +1,11 @@
 package com.personal;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.lang.NonNull;
@@ -122,15 +124,23 @@ final class Scraper {
    public HashSet<String> Traverse(@NonNull String JsonLink, String pureLink, int limit, String Topic, ResponseEntity entity)
    {
     JSONObject jsonObj = new JSONObject(entity.getBody().toString());
-    JSONObject data= jsonObj.getJSONObject("data")  
+
+
+ 
+    List<VideoMetaData> list=new ArrayList<VideoMetaData>();
+   for(int i=1;i<limit;i++)  ///start from 1 cause the  first listing is not a post
+    {
+           JSONObject data= jsonObj.getJSONObject("data")  
     .getJSONArray("children")
-    .getJSONObject(1)
+    .getJSONObject(i)
     .getJSONObject("data");
 
-    
+
     String audioUrl = data.getJSONObject("media").getJSONObject("reddit_video").getString("dash_url");
     System.out.println(audioUrl);
     Document doc=null;
+    VideoMetaData vidMeta = new VideoMetaData(data.getString("title"), null, data.getString("link_flair_text")=="NSFW nudity", data.getString("url"), doc);
+      list.add(vidMeta);
     try{
       DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 DocumentBuilder db = dbf.newDocumentBuilder();
@@ -144,28 +154,8 @@ DocumentBuilder db = dbf.newDocumentBuilder();
       System.exit(-3);
     }
 
-System.out.println(doc.getFirstChild());
-    /* 
-    File stocks = new File("Stocks.xml");
-    DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-    DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-    Document doc = dBuilder.parse(stocks);
-    NodeList nodes = doc.getElementsByTagName("stock");
-doc.getDocumentElement().normalize();
-    VideoMetaData vidMeta = new VideoMetaData(data.getString("title"), null, data.getString("link_flair_text")=="NSFW nudity", Data.getString("url"));
-*/
-   /* 
-     .getJSONArray("children")
-    .getJSONObject(1)
-    .getJSONObject("data");
-   for(int i=1;i<limit;i++)  ///start from 1 cause the  first listing is not a post
-    {
-       JSONObject first = childern.getJSONObject(i);
-       first.getJSONObject
-           System.out.println(first.toString());
-
-    }*/
-
+    }
+        System.err.println(list.size());
 
     return null;
       
