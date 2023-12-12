@@ -9,6 +9,7 @@ final class UserAgent {
     String appID;
     String userName; 
     String version;
+    
     private Map<String, String> authMap  = new  HashMap<String, String>();
    public UserAgent(String platform,String appID, String username, String version )
    {
