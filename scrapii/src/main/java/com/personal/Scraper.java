@@ -2,6 +2,7 @@ package com.personal;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,34 +38,33 @@ import org.w3c.dom.Document;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-
 import java.net.URL;
-
-import org.json.JSONArray;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import org.json.JSONObject;
-import org.json.XML;
+
 final class Scraper {
   private static UserAgent usragt;
   public String JsonLink;
-    public String pureLink;
+  public String pureLink;
   public String topic;
-  public  int limit;
+  public int limit;
   static String accessToken;
 
   public Scraper(String platform, String appID, String username, String version) {
     usragt = new UserAgent(platform, appID, username, version);
 
   }
-  //works
-  //Run ouath2 to get acess toke
-  //Reach homepage
-  //raise exception upon invalid request
-  
-  //needs
-  //switch credential from system enviorments to input scanner to take advantage of spring security
+  // works
+  // Run ouath2 to get acess toke
+  // Reach homepage
+  // raise exception upon invalid request
+
+  // needs
+  // switch credential from system enviorments to input scanner to take advantage
+  // of spring security
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public void Ouath2() {
-
 
     RestTemplate restTemplate = new RestTemplate();
     String url1 = "https://www.reddit.com/api/v1/access_token";
@@ -80,8 +80,7 @@ final class Scraper {
 
     HttpEntity<?> request = new HttpEntity<>(authbody, headers);
 
-
-    ResponseEntity<String> response = restTemplate.exchange(url1,HttpMethod.POST, request, String.class);
+    ResponseEntity<String> response = restTemplate.exchange(url1, HttpMethod.POST, request, String.class);
     if (response.getStatusCode() == HttpStatus.OK) {
       System.out.println("Oauth Post Request Successful");
     } else {
@@ -89,16 +88,15 @@ final class Scraper {
       System.out.println(response.getStatusCode());
       System.exit(-1);
     }
-      JSONObject responeJson = new JSONObject(response.getBody());
-       accessToken= responeJson.getString("access_token");
+    JSONObject responeJson = new JSONObject(response.getBody());
+    accessToken = responeJson.getString("access_token");
 
-  
   }
 
   public String Home(@NonNull String pureLink, int limit, String topic) {
     this.limit = limit;
     this.pureLink = pureLink;
-        this.JsonLink = pureLink + ".json?limit="+limit;
+    this.JsonLink = pureLink + ".json?limit=" + limit;
     System.out.println(JsonLink);
     this.topic = topic;
     RestTemplate homePageAccess = new RestTemplate();
@@ -106,8 +104,8 @@ final class Scraper {
 
     headers.put("User-Agent", Collections.singletonList(usragt.showUserAgent()));
     headers.setBearerAuth(accessToken);
-    HttpEntity request = new HttpEntity("",headers);
-    ResponseEntity<String> response = homePageAccess.exchange(JsonLink,HttpMethod.GET, request, String.class);
+    HttpEntity request = new HttpEntity("", headers);
+    ResponseEntity<String> response = homePageAccess.exchange(JsonLink, HttpMethod.GET, request, String.class);
     if (response.getStatusCode() == HttpStatus.OK) {
       System.out.println("Home subreddit Get Request Successful");
     } else {
@@ -116,50 +114,64 @@ final class Scraper {
       System.exit(-1);
     }
 
-    Traverse(JsonLink, pureLink, limit, topic, response);
+    try {
+      Traverse(JsonLink, pureLink, limit, topic, response);
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
     return response.getBody();
-    
+
   }
-  
-   public HashSet<String> Traverse(@NonNull String JsonLink, String pureLink, int limit, String Topic, ResponseEntity entity)
-   {
+
+  public HashSet<String> Traverse(@NonNull String JsonLink, String pureLink, int limit, String Topic,
+      ResponseEntity entity) throws IOException {
     JSONObject jsonObj = new JSONObject(entity.getBody().toString());
 
-
- 
-    List<VideoMetaData> list=new ArrayList<VideoMetaData>();
-   for(int i=1;i<limit;i++)  ///start from 1 cause the  first listing is not a post
+    List<VideoMetaData> list = new ArrayList<VideoMetaData>();
+    for (int i = 1; i < 2; i++) /// start from 1 cause the first listing is not a post
     {
-           JSONObject data= jsonObj.getJSONObject("data")  
-    .getJSONArray("children")
-    .getJSONObject(i)
-    .getJSONObject("data");
+      JSONObject data = jsonObj.getJSONObject("data")
+          .getJSONArray("children")
+          .getJSONObject(i)
+          .getJSONObject("data");
 
+      String audioXML = data.getJSONObject("media").getJSONObject("reddit_video").getString("dash_url");
+      String videourl = data.getJSONObject("media").getJSONObject("reddit_video").getString("fallback_url");
+      String vidIdentifier = data.getString("name") ;      
+      String timeStamp = new SimpleDateFormat("_yyyy_MM_dd").format(Calendar.getInstance().getTime()); 
+    Boolean made = new File("scrapii\\src\\main\\resources\\"+vidIdentifier).mkdir();   
+    System.out.println(made);
+      String vidOutputFile = "scrapii\\src\\main\\resources\\"+vidIdentifier+"\\"+"Video"+timeStamp+".mp4";
+      String audioOUtputFile = "scrapii\\src\\main\\resources\\"+vidIdentifier+"\\"+"Audio"+timeStamp+".mp3";
 
-    String audioUrl = data.getJSONObject("media").getJSONObject("reddit_video").getString("dash_url");
-    System.out.println(audioUrl);
-    Document doc=null;
-    VideoMetaData vidMeta = new VideoMetaData(data.getString("title"), null, data.getString("link_flair_text")=="NSFW nudity", data.getString("url"), doc);
+      Document doc = null;
+      VideoMetaData vidMeta = new VideoMetaData(data.getString("title"), vidOutputFile,data.getString("link_flair_text") == "NSFW nudity", videourl, null);
+      VideoMetaData.downloadUsingNIO(videourl,vidOutputFile);
+      vidMeta.setVidPath(vidOutputFile);
+      vidMeta.seta
       list.add(vidMeta);
-    try{
-      DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-DocumentBuilder db = dbf.newDocumentBuilder();
- doc = db.parse(new URL(audioUrl).openStream());
+      try {
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        doc = db.parse(new URL(audioXML).openStream());
+         String audioUrl = data.getString("url")+"/" + doc.getElementsByTagName("BaseURL").item(doc.getElementsByTagName("BaseURL").getLength()-1).getTextContent();
+    VideoMetaData.downloadUsingNIO(audioUrl,audioOUtputFile);
 
-    //doc.getDocumentElement().normalize();
-    }
-  
-    catch(Exception e){
+      }
+
+      catch (Exception e) {
         System.out.println("audio url is null");
-      System.exit(-3);
-    }
+        System.exit(-3);
+      }
 
-    }
-        System.err.println(list.size());
+
+    System.err.println(list.size());
 
     return null;
-      
-   }
+
+  }
+    return null;
 
 
-}
+}}

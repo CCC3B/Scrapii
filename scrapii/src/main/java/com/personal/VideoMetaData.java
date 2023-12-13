@@ -1,29 +1,35 @@
 package com.personal;
 
-import javax.swing.text.Document;
-
+import java.io.BufferedInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.Channels;
 public class VideoMetaData {
     String vidTitle;
-    org.w3c.dom.Document audioxml;
     String vidPath;
     Boolean isNSFW;
     String url;
-    public VideoMetaData( String vidTitle, String vidPath, Boolean isNSFW, String url, org.w3c.dom.Document doc)
+    String audioURL;
+    public VideoMetaData( String vidTitle, String vidPath, Boolean isNSFW, String url, String audioURL)
         {
         this.vidTitle=vidTitle;
         this.vidPath=vidPath;
         this.isNSFW=isNSFW;
         this.url = url;
-        this.audioxml = doc;
+        this.audioURL = audioURL;
     }
 
-    public org.w3c.dom.Document getAudioxml() {
-        return this.audioxml;
+    public String getAudioURL() {
+        return this.audioURL;
     }
 
-    public void setAudioxml(org.w3c.dom.Document audioxml) {
-        this.audioxml = audioxml;
+    public void setAudioURL(String audioURL) {
+        this.audioURL = audioURL;
     }
+
+
 
     public String getUrl() {
         return this.url;
@@ -56,6 +62,8 @@ public class VideoMetaData {
     }
 
     public Boolean getIsNSFW() {
+
+
         return this.isNSFW;
     }
 
@@ -63,6 +71,15 @@ public class VideoMetaData {
         this.isNSFW = isNSFW;
     }
 
-    
-    
+    public  static int downloadUsingNIO(String urlStr, String file) throws IOException {
+        URL url = new URL(urlStr);
+        ReadableByteChannel rbc = Channels.newChannel(url.openStream());
+        FileOutputStream fos = new FileOutputStream(file);
+        fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+        fos.close();
+        rbc.close();
+        return 0;
+    }
 }
+    
+
