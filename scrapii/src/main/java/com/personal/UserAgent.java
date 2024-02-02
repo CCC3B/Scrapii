@@ -26,6 +26,9 @@ final class UserAgent {
         map.put("rdt_user",System.getenv("rdit_user"));
         map.put("rdt_secret",System.getenv("rdit_secret"));
         map.put("rdt_ID",System.getenv("rdit_ID"));
+        map.put("tik_secret",System.getenv("tok_secret"));
+        map.put("tik_client",System.getenv("tok_client"));
+
         map.put("token",Token);
 
       return map;

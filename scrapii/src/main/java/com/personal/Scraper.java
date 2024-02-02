@@ -20,7 +20,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -94,9 +93,9 @@ final class Scraper {
   }
 
   public String Home(@NonNull String pureLink, int limit, String topic) {
-    this.limit = limit;
+    this.limit = limit+1;
     this.pureLink = pureLink;
-    this.JsonLink = pureLink + ".json?limit=" + limit;
+    this.JsonLink = pureLink + ".json?limit=" +this.limit;
     System.out.println(JsonLink);
     this.topic = topic;
     RestTemplate homePageAccess = new RestTemplate();
@@ -128,8 +127,8 @@ final class Scraper {
       ResponseEntity entity) throws IOException {
     JSONObject jsonObj = new JSONObject(entity.getBody().toString());
 
-    List<VideoMetaData> list = new ArrayList<VideoMetaData>();
-    for (int i = 1; i < 2; i++) /// start from 1 cause the first listing is not a post
+    List<VideoMetaData> VideoList = new ArrayList<VideoMetaData>();
+    for (int i = 1; i <= limit; i++) /// start from 1 cause the first listing is not a post, this means the loop can't be 0 based
     {
       JSONObject data = jsonObj.getJSONObject("data")
           .getJSONArray("children")
@@ -138,25 +137,32 @@ final class Scraper {
 
       String audioXML = data.getJSONObject("media").getJSONObject("reddit_video").getString("dash_url");
       String videourl = data.getJSONObject("media").getJSONObject("reddit_video").getString("fallback_url");
-      String vidIdentifier = data.getString("name") ;      
-      String timeStamp = new SimpleDateFormat("_yyyy_MM_dd").format(Calendar.getInstance().getTime()); 
-    Boolean made = new File("scrapii\\src\\main\\resources\\"+vidIdentifier).mkdir();   
-    System.out.println(made);
-      String vidOutputFile = "scrapii\\src\\main\\resources\\"+vidIdentifier+"\\"+"Video"+timeStamp+".mp4";
-      String audioOUtputFile = "scrapii\\src\\main\\resources\\"+vidIdentifier+"\\"+"Audio"+timeStamp+".mp3";
+      String vidIdentifier = data.getString("name");
+      String timeStamp = new SimpleDateFormat("_yyyy_MM_dd").format(Calendar.getInstance().getTime());
+      Boolean made = new File("scrapii\\src\\main\\resources\\" + vidIdentifier).mkdir();
+      //maintain seperate record for audio and video to validate if video and audio merged correctly
+      String vidOutputFile = "scrapii\\src\\main\\resources\\" + vidIdentifier + "\\" + "Video" + timeStamp+".mkv";
+      String audioOUtputFile = "scrapii\\src\\main\\resources\\" + vidIdentifier + "\\" + "Audio" + timeStamp + ".mp3";
+      String viddir = "scrapii\\src\\main\\resources\\" + vidIdentifier + "\\" + "Video" + timeStamp+" Merged.mkv";
 
+      //create new video meta data class holding data relevant for tags,sql database and unique identifiers.
       Document doc = null;
-      VideoMetaData vidMeta = new VideoMetaData(data.getString("title"), vidOutputFile,data.getString("link_flair_text") == "NSFW nudity", videourl, null);
-      VideoMetaData.downloadUsingNIO(videourl,vidOutputFile);
+      VideoMetaData vidMeta = new VideoMetaData(data.getString("title"), vidOutputFile,
+      data.optString("link_flair_text",null)=="link_flair_text", videourl, audioOUtputFile, viddir);
+      VideoMetaData.downloadUsingNIO(videourl, vidOutputFile);
       vidMeta.setVidPath(vidOutputFile);
-      vidMeta.seta
-      list.add(vidMeta);
-      try {
+       vidMeta.setAudioPath(audioOUtputFile);
+        VideoList.add(vidMeta); // will hold each video data for later use
+
+
+      try {//This section traverses an xml audio playlist of type DASH and builds the audio url based on the avaiable resolutions 
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db = dbf.newDocumentBuilder();
         doc = db.parse(new URL(audioXML).openStream());
-         String audioUrl = data.getString("url")+"/" + doc.getElementsByTagName("BaseURL").item(doc.getElementsByTagName("BaseURL").getLength()-1).getTextContent();
-    VideoMetaData.downloadUsingNIO(audioUrl,audioOUtputFile);
+        String audioUrl = data.getString("url") + "/" + doc.getElementsByTagName("BaseURL")
+            .item(doc.getElementsByTagName("BaseURL").getLength() - 1).getTextContent();
+        VideoMetaData.downloadUsingNIO(audioUrl, audioOUtputFile);
+
 
       }
 
@@ -164,14 +170,18 @@ final class Scraper {
         System.out.println("audio url is null");
         System.exit(-3);
       }
+ }
+      int k=VideoList.size();
+      for (VideoMetaData VMD : VideoList) {
+        VideoMetaData.videoAudioMuxer(VMD.audioPath,VMD.vidPath, VMD.viddir);
+        System.out.println(k+" Video(s) merged:...");
 
+      }
+      System.exit(1);
 
-    System.err.println(list.size());
-
+   
     return null;
 
   }
-    return null;
-
-
-}}
+  
+}
